@@ -486,12 +486,60 @@
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
     }
 
+    /* Strictness Toggle Buttons */
+    .strictness-btn {
+      flex: 1;
+      padding: 0.35rem 0.65rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      border: 1px solid var(--card-border);
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .strictness-btn:hover {
+      background: rgba(20, 20, 20, 0.06);
+    }
+    .strictness-btn.active {
+      background: #141414;
+      color: #efece6;
+      border-color: #141414;
+    }
+
+    /* Time-Travel Modal Scrubber */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+      z-index: 10001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .modal-content {
+      background: #f8f6f2;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 700px;
+      padding: 2rem;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+    }
+
     /* Mobile adjustments */
     @media (max-width: 900px) {
       .grid-guide { display: none; }
       nav { grid-template-columns: 1fr auto; padding: 0 1rem; }
       .nav-links, .nav-pad { display: none; }
-      .hero-header, .section-title-wrap, .stats-shelf, .param-suite-wrap, .events-section { padding: 0 1rem; }
+      .hero-header, .section-title-wrap, .stats-shelf, .param-suite-wrap, .events-section, .calculator-container { padding: 0 1rem; }
     }
   </style>
 </head>
@@ -555,13 +603,31 @@
   </div>
 
   <div class="content-wrapper">
-    <!-- Clean EcoBrake Hero Header -->
-    <div class="hero-header">
-      <div class="sec-tag">RUNTIME CIRCUIT BREAKER TELEMETRY</div>
-      <h1 style="font-size: clamp(34px, 4vw, 62px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 0.6rem;">EcoBrake Control Center</h1>
-      <p style="color: var(--text-dim); max-width: 600px; font-size: 15px; background: rgba(239, 236, 230, 0.88); padding: 0.45rem 0.75rem; border-radius: 4px; display: inline-block;">
-        Inference-time streaming proxy monitoring LLM agent loops & stalls with real-time bounded recovery.
-      </p>
+    <!-- Clean EcoBrake Hero Header with Strictness Dial -->
+    <div class="hero-header" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1.5rem;">
+      <div>
+        <div class="sec-tag">RUNTIME CIRCUIT BREAKER TELEMETRY</div>
+        <h1 style="font-size: clamp(34px, 4vw, 62px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 0.6rem;">EcoBrake Control Center</h1>
+        <p style="color: var(--text-dim); max-width: 600px; font-size: 15px; background: rgba(239, 236, 230, 0.88); padding: 0.45rem 0.75rem; border-radius: 4px; display: inline-block;">
+          Inference-time streaming proxy monitoring LLM agent loops & stalls with real-time bounded recovery.
+        </p>
+      </div>
+
+      <!-- Sensitivity / Strictness Dial Control -->
+      <div style="background: rgba(248, 246, 242, 0.95); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.9rem 1.25rem; backdrop-filter: blur(10px); min-width: 290px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim);">Strictness Sensitivity Dial</span>
+          <span id="strictness-badge" style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; background: #141414; color: #efece6; padding: 2px 6px; border-radius: 3px;">BALANCED</span>
+        </div>
+        <div style="display: flex; gap: 6px; margin-bottom: 0.5rem;">
+          <button id="btn-lenient" class="strictness-btn" onclick="setStrictness('lenient')">LENIENT</button>
+          <button id="btn-balanced" class="strictness-btn active" onclick="setStrictness('balanced')">BALANCED</button>
+          <button id="btn-strict" class="strictness-btn" onclick="setStrictness('strict')">STRICT</button>
+        </div>
+        <div id="strictness-caption" style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-dim);">
+          Stall: 3 steps | Repeat: 3x calls
+        </div>
+      </div>
     </div>
 
     <!-- Section 2: Product & 5-Parameter Verification Suite -->
@@ -577,6 +643,11 @@
           <div class="shelf-label">Total Runs Monitored</div>
           <div class="shelf-num" id="stat-runs">0</div>
           <div class="shelf-sub">Active stream passthrough</div>
+        </div>
+        <div class="shelf-card">
+          <div class="shelf-label">Agent Health Score</div>
+          <div class="shelf-num" id="stat-health" style="color: #0284c7;">100/100</div>
+          <div class="shelf-sub">A+ Loop Immunity</div>
         </div>
         <div class="shelf-card">
           <div class="shelf-label">Total Interventions</div>
@@ -641,16 +712,70 @@
           <div class="p-box" id="metrics-box-label">Verified: 0 tokens saved ($0.00000 USD)</div>
         </div>
       </div>
+
+      <!-- Enterprise Value Simulator & ROI Calculator -->
+      <div class="calculator-container" style="margin: 0 17% 4rem 17%; background: rgba(248, 246, 242, 0.95); border: 1px solid var(--card-border); border-radius: 12px; padding: 2rem; backdrop-filter: blur(14px);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+          <div>
+            <div class="sec-tag">ENTERPRISE VALUE SIMULATOR</div>
+            <div style="font-size: 22px; font-weight: 700; letter-spacing: -0.01em;">EcoBrake Production Cost & Time Savings Calculator</div>
+            <div style="font-size: 13px; color: var(--text-dim); margin-top: 0.2rem;">Simulate real-world token waste averted across your agent fleet</div>
+          </div>
+          <div style="background: #141414; color: #efece6; padding: 0.4rem 0.8rem; border-radius: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px;">
+            ROI ESTIMATOR
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; align-items: center;">
+          <div>
+            <div style="margin-bottom: 1.5rem;">
+              <div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 12px; margin-bottom: 0.4rem;">
+                <span>DAILY AGENT RUNS:</span>
+                <strong id="calc-runs-val">10,000 runs/day</strong>
+              </div>
+              <input type="range" id="calc-runs-slider" min="1000" max="100000" step="1000" value="10000" style="width: 100%; cursor: pointer;" oninput="updateCalculator()">
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 12px; margin-bottom: 0.4rem;">
+                <span>RUNAWAY STALL RATE:</span>
+                <strong id="calc-rate-val">7.5%</strong>
+              </div>
+              <input type="range" id="calc-rate-slider" min="1.0" max="25.0" step="0.5" value="7.5" style="width: 100%; cursor: pointer;" oninput="updateCalculator()">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div style="background: rgba(20, 20, 20, 0.03); border: 1px solid rgba(20, 20, 20, 0.08); border-radius: 8px; padding: 1.1rem;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-dim); text-transform: uppercase;">Est. Monthly Dollars Saved</div>
+              <div id="calc-monthly-dollars" style="font-size: 26px; font-weight: 700; color: var(--success); font-family: 'IBM Plex Mono', monospace;">$810.00</div>
+              <div id="calc-yearly-dollars" style="font-size: 11px; color: var(--text-dim); margin-top: 4px; font-family: 'IBM Plex Mono', monospace;">≈ $9,720.00 USD / yr</div>
+            </div>
+
+            <div style="background: rgba(20, 20, 20, 0.03); border: 1px solid rgba(20, 20, 20, 0.08); border-radius: 8px; padding: 1.1rem;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-dim); text-transform: uppercase;">Engineering Time Saved</div>
+              <div id="calc-hours-saved" style="font-size: 26px; font-weight: 700; color: var(--primary); font-family: 'IBM Plex Mono', monospace;">56 hrs</div>
+              <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px; font-family: 'IBM Plex Mono', monospace;">Zero manual triage</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Section 3: Live Telemetry Stream Feed -->
     <section id="telemetry-section" class="events-section">
       <div class="events-container">
         <div class="events-head">
-          <div class="events-title">LIVE INTERVENTION TELEMETRY FEED</div>
-          <div class="events-pulse">
-            <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--success);"></span>
-            <span>POLLING 2s</span>
+          <div>
+            <div class="events-title">LIVE INTERVENTION TELEMETRY FEED</div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); margin-top: 2px;">Click any row to launch step-by-step Time-Travel Debugger</div>
+          </div>
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <button class="btn-launch" style="padding: 0.25rem 0.65rem; font-size: 10px;" onclick="openReplayDemo()">&#9658; SAMPLE REPLAY</button>
+            <div class="events-pulse">
+              <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--success);"></span>
+              <span>POLLING 2s</span>
+            </div>
           </div>
         </div>
         <div style="overflow-x: auto;">
@@ -666,11 +791,12 @@
                 <th>Saved</th>
                 <th>Latency</th>
                 <th>Diagnosis Details</th>
+                <th>Replay</th>
               </tr>
             </thead>
             <tbody id="events-tbody">
               <tr>
-                <td colspan="9" style="text-align:center; padding: 2.5rem; color: var(--text-dim);">
+                <td colspan="10" style="text-align:center; padding: 2.5rem; color: var(--text-dim);">
                   No interventions recorded yet. Real-time stream events will appear here live.
                 </td>
               </tr>
@@ -679,6 +805,33 @@
         </div>
       </div>
     </section>
+  </div>
+
+  <!-- Time-Travel Step Scrubber Modal -->
+  <div id="replayModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--grid-line); padding-bottom: 1rem;">
+        <div>
+          <span class="sec-tag">TIME-TRAVEL DEBUGGER</span>
+          <h2 style="font-size: 20px; font-weight: 700; margin: 0;">Step-by-Step Ledger Scrubber</h2>
+        </div>
+        <button onclick="closeReplayModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text);">&times;</button>
+      </div>
+
+      <!-- Scrubber Slider -->
+      <div style="margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 12px; margin-bottom: 0.6rem;">
+          <span id="replay-step-label">STEP 1 of 4: Normal Preamble</span>
+          <span id="replay-status-pill" style="padding: 2px 8px; border-radius: 4px; font-size: 10px; background: #e2e8f0; color: #334155;">HEALTHY</span>
+        </div>
+        <input type="range" id="replay-step-slider" min="1" max="4" value="1" style="width: 100%; cursor: pointer;" oninput="onScrubStep(this.value)">
+      </div>
+
+      <!-- Step Content Display -->
+      <div id="replay-step-box" style="background: rgba(20, 20, 20, 0.04); border: 1px solid var(--grid-line); border-radius: 8px; padding: 1.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 11px; line-height: 1.6;">
+        <!-- Filled dynamically -->
+      </div>
+    </div>
   </div>
 
   <!-- macOS-Style Floating Dock -->
@@ -1105,7 +1258,17 @@
           const cost = (stats.estimated_cost_saved_usd || 0).toFixed(5);
           document.getElementById('stat-cost').textContent = `≈ $${cost} USD saved`;
           document.getElementById('stat-latency').textContent = (stats.mean_added_latency_ms || 0) + ' ms';
+          document.getElementById('stat-health').textContent = (stats.agent_health_score || 100) + '/100';
           document.getElementById('metrics-box-label').textContent = `Verified: ${(stats.estimated_tokens_saved || 0).toLocaleString()} tokens saved ($${cost} USD)`;
+
+          if (stats.strictness) {
+            ['lenient', 'balanced', 'strict'].forEach(m => {
+              const el = document.getElementById('btn-' + m);
+              if (el) el.classList.toggle('active', m === stats.strictness);
+            });
+            const badge = document.getElementById('strictness-badge');
+            if (badge) badge.textContent = stats.strictness.toUpperCase();
+          }
         }
 
         const resEvents = await fetch('/api/events');
@@ -1131,7 +1294,8 @@
                   <td>${ev.tokens_before} &rarr; ${ev.tokens_after}</td>
                   <td style="color:var(--success); font-weight:700;">+${ev.tokens_saved || 0}</td>
                   <td>${ev.latency_added_ms} ms</td>
-                  <td style="max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${details}</td>
+                  <td style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${details}</td>
+                  <td><button class="btn-launch" style="padding: 2px 7px; font-size: 9px;" onclick="openReplayEvent('${ev.run_id}', '${ev.signal}', '${encodeURIComponent(details)}')">&#9658; SCRUB</button></td>
                 </tr>
               `;
             }).join('');
@@ -1141,6 +1305,147 @@
       } catch (e) {
         console.error(e);
       }
+    }
+
+    async function setStrictness(mode) {
+      try {
+        const res = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ strictness: mode })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          ['lenient', 'balanced', 'strict'].forEach(m => {
+            const el = document.getElementById('btn-' + m);
+            if (el) el.classList.toggle('active', m === mode);
+          });
+          document.getElementById('strictness-badge').textContent = mode.toUpperCase();
+          const cap = document.getElementById('strictness-caption');
+          if (mode === 'lenient') cap.textContent = 'Stall: 5 steps | Repeat: 4x calls | Sentence: 5x';
+          else if (mode === 'strict') cap.textContent = 'Stall: 2 steps | Repeat: 2x calls | Sentence: 2x';
+          else cap.textContent = 'Stall: 3 steps | Repeat: 3x calls | Sentence: 3x';
+          showToast(`EcoBrake Circuit Breaker set to ${mode.toUpperCase()} mode.`);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function updateCalculator() {
+      const runs = parseInt(document.getElementById('calc-runs-slider').value, 10);
+      const rate = parseFloat(document.getElementById('calc-rate-slider').value);
+      document.getElementById('calc-runs-val').textContent = runs.toLocaleString() + ' runs/day';
+      document.getElementById('calc-rate-val').textContent = rate.toFixed(1) + '%';
+
+      const monthlyRuns = runs * 30;
+      const monthlyStalls = monthlyRuns * (rate / 100);
+      const tokensSaved = monthlyStalls * 450;
+      const monthlyDollars = (tokensSaved / 1_000_000) * 0.60;
+      const yearlyDollars = monthlyDollars * 12;
+      const hoursSaved = Math.round(monthlyStalls * 0.25);
+
+      document.getElementById('calc-monthly-dollars').textContent = '$' + monthlyDollars.toFixed(2);
+      document.getElementById('calc-yearly-dollars').textContent = '≈ $' + yearlyDollars.toFixed(2) + ' USD / yr';
+      document.getElementById('calc-hours-saved').textContent = hoursSaved.toLocaleString() + ' hrs';
+    }
+
+    // Time-Travel Replay State
+    let currentReplaySteps = [];
+
+    function openReplayDemo() {
+      currentReplaySteps = [
+        {
+          step: 1,
+          title: "Step 1: User Request Initiated",
+          status: "HEALTHY",
+          color: "#22c55e",
+          content: "User: 'Fetch user record #42 and retry until status changes to approved.'\nAgent: Initiating query to downstream database endpoint."
+        },
+        {
+          step: 2,
+          title: "Step 2: First Tool Invocation",
+          status: "PROGRESS",
+          color: "#0ea5e9",
+          content: "Tool Call: query_user(user_id=42)\nResponse: {'status': 'pending', 'updated_at': '2026-11-01T12:00:00Z'}\nProgress Ledger: Recorded new tool key & fingerprint [hash: e3b0c442...]."
+        },
+        {
+          step: 3,
+          title: "Step 3: Duplicate Tool Invocation Detected",
+          status: "ZERO PROGRESS",
+          color: "#f59e0b",
+          content: "Tool Call: query_user(user_id=42) [Identical Arguments]\nResponse: {'status': 'pending', 'updated_at': '2026-11-01T12:00:00Z'} [Identical Hash]\nProgress Ledger: Turn 2 with zero new facts or state delta."
+        },
+        {
+          step: 4,
+          title: "Step 4: EcoBrake Circuit Breaker Tripped",
+          status: "INTERVENTION",
+          color: "#ef4444",
+          content: "SIGNAL: STALLED (Zero progress threshold reached: 3 identical steps)\nPOLICY TRIGGERED: Policy A (Bounded Retry with clean rewind boundary)\nEXPLAIN WHY: Agent was trapped in an infinite loop polling the same record without external mutations. Stream halted cleanly to protect token spend and prompt reinjected with recovery guidance."
+        }
+      ];
+      showReplayModal();
+    }
+
+    function openReplayEvent(runId, signal, detailsRaw) {
+      const details = decodeURIComponent(detailsRaw);
+      currentReplaySteps = [
+        {
+          step: 1,
+          title: `Step 1: Run ${runId} Dispatched`,
+          status: "HEALTHY",
+          color: "#22c55e",
+          content: `Run ID: ${runId}\nStream connection established. Initial chunks delivered with zero latency.`
+        },
+        {
+          step: 2,
+          title: "Step 2: Stream Flowing",
+          status: "HEALTHY",
+          color: "#0ea5e9",
+          content: "Generating tokens. Rolling checkpoint buffer preserving clean boundary (38 characters)."
+        },
+        {
+          step: 3,
+          title: `Step 3: Anomaly Detected (${signal})`,
+          status: "WARNING",
+          color: "#f59e0b",
+          content: `Anomaly flagged: ${signal}\nDiagnosis details: ${details}`
+        },
+        {
+          step: 4,
+          title: "Step 4: Circuit Breaker Intervened",
+          status: "INTERVENTION",
+          color: "#ef4444",
+          content: `Action: Cut stream and applied recovery policy.\nDiagnosis: ${details}\nTokens Saved: Runaway token waste prevented.`
+        }
+      ];
+      showReplayModal();
+    }
+
+    function showReplayModal() {
+      document.getElementById('replayModal').style.display = 'flex';
+      document.getElementById('replay-step-slider').value = 1;
+      onScrubStep(1);
+    }
+
+    function closeReplayModal() {
+      document.getElementById('replayModal').style.display = 'none';
+    }
+
+    function onScrubStep(stepVal) {
+      const idx = parseInt(stepVal, 10) - 1;
+      const stepData = currentReplaySteps[idx];
+      if (!stepData) return;
+
+      document.getElementById('replay-step-label').textContent = `${stepData.title}`;
+      const pill = document.getElementById('replay-status-pill');
+      pill.textContent = stepData.status;
+      pill.style.background = stepData.color + '22';
+      pill.style.color = stepData.color;
+
+      document.getElementById('replay-step-box').innerHTML = `
+        <pre style="margin:0; font-family:inherit; white-space:pre-wrap;">${stepData.content}</pre>
+      `;
     }
 
     async function triggerSuiteVerification() {

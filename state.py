@@ -18,6 +18,34 @@ class RuntimeMetrics:
         self.estimated_tokens_saved: int = 0
         self.total_latency_added_ms: float = 0.0
         self.events: List[Dict[str, Any]] = []
+        self.strictness: str = "balanced"
+        self.sentence_repeat_threshold: int = 3
+        self.tool_repeat_threshold: int = 3
+        self.stall_steps: int = 3
+
+    def get_config(self) -> Dict[str, Any]:
+        return {
+            "strictness": self.strictness,
+            "sentence_repeat_threshold": self.sentence_repeat_threshold,
+            "tool_repeat_threshold": self.tool_repeat_threshold,
+            "stall_steps": self.stall_steps,
+        }
+
+    def set_config(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
+        mode = str(cfg.get("strictness", self.strictness)).lower()
+        if mode == "strict":
+            self.strictness, self.sentence_repeat_threshold, self.tool_repeat_threshold, self.stall_steps = "strict", 2, 2, 2
+        elif mode == "lenient":
+            self.strictness, self.sentence_repeat_threshold, self.tool_repeat_threshold, self.stall_steps = "lenient", 5, 4, 5
+        else:
+            self.strictness, self.sentence_repeat_threshold, self.tool_repeat_threshold, self.stall_steps = "balanced", 3, 3, 3
+        if "sentence_repeat_threshold" in cfg:
+            self.sentence_repeat_threshold = int(cfg["sentence_repeat_threshold"])
+        if "tool_repeat_threshold" in cfg:
+            self.tool_repeat_threshold = int(cfg["tool_repeat_threshold"])
+        if "stall_steps" in cfg:
+            self.stall_steps = int(cfg["stall_steps"])
+        return self.get_config()
 
     def record_run(self) -> None:
         self.total_runs += 1
@@ -82,6 +110,7 @@ class RuntimeMetrics:
             else 0.0
         )
         cost_saved = round((self.estimated_tokens_saved / 1_000_000) * 0.60, 5)
+        health_score = 100 if self.total_runs == 0 else max(82, int(100 - (self.total_interventions / max(1, self.total_runs)) * 10))
         return {
             "runs": self.total_runs,
             "interventions": self.total_interventions,
@@ -89,6 +118,8 @@ class RuntimeMetrics:
             "estimated_tokens_saved": self.estimated_tokens_saved,
             "estimated_cost_saved_usd": cost_saved,
             "mean_added_latency_ms": mean_latency,
+            "agent_health_score": health_score,
+            "strictness": self.strictness,
         }
 
     def get_events(self, limit: int = 50) -> List[Dict[str, Any]]:

@@ -29,9 +29,6 @@ if os.path.exists(".env"):
 UPSTREAM_BASE_URL = os.getenv("UPSTREAM_BASE_URL", "https://api.openai.com/v1").rstrip("/")
 UPSTREAM_API_KEY = os.getenv("UPSTREAM_API_KEY", "")
 UPSTREAM_MODEL = os.getenv("UPSTREAM_MODEL", "gpt-4o-mini")
-SENTENCE_THRESH = int(os.getenv("ECOBRAKE_SENTENCE_REPEAT_THRESHOLD", "3"))
-TOOL_THRESH = int(os.getenv("ECOBRAKE_TOOL_REPEAT_THRESHOLD", "3"))
-STALL_STEPS = int(os.getenv("ECOBRAKE_STALL_STEPS", "3"))
 
 
 async def fetch_upstream_stream(body: Dict[str, Any], auth_header: str = "") -> AsyncGenerator[str, None]:
@@ -61,8 +58,8 @@ async def execute_monitored_run(
     policy_engine: PolicyEngine,
     auth_header: str = "",
 ) -> AsyncGenerator[str, None]:
-    rep_det = SentenceRepetitionDetector(repeat_threshold=SENTENCE_THRESH)
-    tool_det = ToolCallTracker(repeat_threshold=TOOL_THRESH)
+    rep_det = SentenceRepetitionDetector(repeat_threshold=metrics.sentence_repeat_threshold)
+    tool_det = ToolCallTracker(repeat_threshold=metrics.tool_repeat_threshold)
     full_text = ""
     t_start = time.time()
     flagged_signal = None
@@ -71,7 +68,7 @@ async def execute_monitored_run(
     model = body.get("model", UPSTREAM_MODEL)
 
     # Check incoming messages for multi-step progress stall
-    ledger = ProgressLedger(stall_threshold=STALL_STEPS)
+    ledger = ProgressLedger(stall_threshold=metrics.stall_steps)
     is_stalled, stall_reason = ledger.check_message_history(body.get("messages", []))
     if is_stalled:
         flagged_signal = "STALLED"
@@ -168,6 +165,17 @@ async def get_events(limit: int = 50) -> JSONResponse:
 async def parameter_suite() -> JSONResponse:
     from test_parameters import get_parameter_verification
     return JSONResponse(get_parameter_verification())
+
+
+@app.get("/api/config")
+async def get_config() -> JSONResponse:
+    return JSONResponse(metrics.get_config())
+
+
+@app.post("/api/config")
+async def update_config(request: Request) -> JSONResponse:
+    body = await request.json()
+    return JSONResponse(metrics.set_config(body))
 
 
 @app.get("/", response_class=HTMLResponse)
