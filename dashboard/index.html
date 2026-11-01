@@ -595,19 +595,8 @@
         </div>
       </div>
 
-      <!-- 5-Parameter Verification Suite Cards -->
+      <!-- Parameter Verification Suite Cards -->
       <div class="param-suite-wrap">
-        <div class="p-card">
-          <div class="p-card-head">
-            <span class="p-title">1. Sentence Repetition Monitor</span>
-            <span class="p-badge">PARAM 1</span>
-          </div>
-          <div class="p-line"><strong>Window:</strong> Last 300 characters</div>
-          <div class="p-line"><strong>Normalization:</strong> Min 25 chars, lowercased</div>
-          <div class="p-line"><strong>Rule:</strong> Flag on 3+ occurrences in rolling buffer</div>
-          <div class="p-box">Rewinds stream to clean checkpoint before loop</div>
-        </div>
-
         <div class="p-card">
           <div class="p-card-head">
             <span class="p-title">1. Identical Tool-Call Tracker</span>
@@ -617,17 +606,6 @@
           <div class="p-line"><strong>Threshold:</strong> Flag on 3x identical calls in run</div>
           <div class="p-line"><strong>Action:</strong> Cuts stream before wasted token spend</div>
           <div class="p-box">Catches loops ledger alone might miss</div>
-        </div>
-
-        <div class="p-card">
-          <div class="p-card-head">
-            <span class="p-title">3. Tool-Result Tracker (Ledger)</span>
-            <span class="p-badge">PARAM 3</span>
-          </div>
-          <div class="p-line"><strong>Hashing:</strong> SHA-256 tool output fingerprints</div>
-          <div class="p-line"><strong>Progress:</strong> New tool key, new hash, or new fact</div>
-          <div class="p-line"><strong>Stall Threshold:</strong> 3 consecutive zero-progress turns</div>
-          <div class="p-box">Detects when agent repeats calls getting same answer</div>
         </div>
 
         <div class="p-card">
@@ -643,8 +621,19 @@
 
         <div class="p-card">
           <div class="p-card-head">
-            <span class="p-title">5. Savings and Economics</span>
-            <span class="p-badge">PARAM 5</span>
+            <span class="p-title">3. Tool-Result Tracker (Ledger)</span>
+            <span class="p-badge">PARAM 3</span>
+          </div>
+          <div class="p-line"><strong>Hashing:</strong> SHA-256 tool output fingerprints</div>
+          <div class="p-line"><strong>Progress:</strong> New tool key, new hash, or new fact</div>
+          <div class="p-line"><strong>Stall Threshold:</strong> 3 consecutive zero-progress turns</div>
+          <div class="p-box">Detects when agent repeats calls getting same answer</div>
+        </div>
+
+        <div class="p-card">
+          <div class="p-card-head">
+            <span class="p-title">4. Savings and Economics</span>
+            <span class="p-badge">PARAM 4</span>
           </div>
           <div class="p-line"><strong>Detection Rate:</strong> 100% on benchmark callset</div>
           <div class="p-line"><strong>False Positive Rate:</strong> 0.0% on healthy code/text</div>
