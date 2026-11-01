@@ -1,0 +1,19 @@
+{
+  "run_id": "bench_stall_progress_1",
+  "label": "stalled",
+  "expected_signal": "STALLED",
+  "messages": [
+    {"role": "user", "content": "Retrieve the auth status"},
+    {"role": "assistant", "tool_calls": [{"function": {"name": "get_status", "arguments": "{\"service\":\"auth\"}"}}]},
+    {"role": "tool", "content": "connection_timeout"},
+    {"role": "assistant", "tool_calls": [{"function": {"name": "get_status", "arguments": "{\"service\":\"auth\"}"}}]},
+    {"role": "tool", "content": "connection_timeout"},
+    {"role": "assistant", "tool_calls": [{"function": {"name": "get_status", "arguments": "{\"service\":\"auth\"}"}}]},
+    {"role": "tool", "content": "connection_timeout"},
+    {"role": "assistant", "tool_calls": [{"function": {"name": "get_status", "arguments": "{\"service\":\"auth\"}"}}]},
+    {"role": "tool", "content": "connection_timeout"}
+  ],
+  "stream_chunks": [
+    {"chunk": "data: {\"id\": \"p1\", \"choices\": [{\"delta\": {\"content\": \"Retrying auth status again...\"}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 10.0}
+  ]
+}

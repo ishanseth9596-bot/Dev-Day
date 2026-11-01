@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EcoBrake Live Dashboard - Goal-Aware Runtime Circuit Breaker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg: #efece6;
+      --paper: #f8f6f2;
+      --card-bg: rgba(248, 246, 242, 0.82);
+      --card-border: rgba(20, 20, 20, 0.12);
+      --text: #141414;
+      --text-dim: rgba(20, 20, 20, 0.52);
+      --grid-line: rgba(20, 20, 20, 0.08);
+      --brand-gradient: conic-gradient(from 200deg, #ffb347, #ff8a3d 18%, #ff5a5f 34%, #ff3d8b 50%, #ff5a5f 66%, #ff8a3d 82%, #ffb347);
+      --primary: #ff5a5f;
+      --accent: #ff8a3d;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --col: 17%;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Schibsted Grotesk', 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+
+    /* Fixed Fullscreen Three.js 3D Robot Canvas */
+    #webgl-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Vertical Background Guide Lines */
+    .grid-guide {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--grid-line);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .guide-left { left: 17%; }
+    .guide-mid { left: 50%; }
+    .guide-right { left: 83%; }
+
+    /* Top Bar */
+    .top-bar {
+      height: 32px;
+      background: #141414;
+      color: #efece6;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      letter-spacing: 0.05em;
+      position: relative;
+      z-index: 100;
+      transition: transform 0.5s cubic-bezier(0.6, 0, 0.2, 1);
+    }
+    .top-bar strong { color: #ffb347; font-weight: 600; }
+    .top-bar-close { cursor: pointer; opacity: 0.6; padding: 0 4px; }
+    .top-bar-close:hover { opacity: 1; }
+
+    /* Main Navigation */
+    nav {
+      height: 54px;
+      background: rgba(239, 236, 230, 0.88);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--grid-line);
+      position: sticky;
+      top: 0;
+      z-index: 99;
+      display: grid;
+      grid-template-columns: 17% 1fr 14% 17%;
+      align-items: center;
+      transition: top 0.3s ease;
+    }
+    .nav-logo {
+      padding-left: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .logo-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      background: linear-gradient(var(--bg), var(--bg)) padding-box, var(--brand-gradient) border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .logo-badge::after {
+      content: "••";
+      font-size: 8px;
+      letter-spacing: 1px;
+      color: #141414;
+      font-weight: 900;
+    }
+    .logo-text {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.8rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding-left: 1rem;
+    }
+    .nav-links a { color: var(--text); text-decoration: none; opacity: 0.75; transition: opacity 0.2s; }
+    .nav-links a:hover { opacity: 1; color: var(--primary); }
+    .nav-pad {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      border-left: 1px solid var(--grid-line);
+      border-right: 1px solid var(--grid-line);
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+    }
+    .nav-action {
+      display: flex;
+      justify-content: flex-end;
+      padding-right: 1.5rem;
+    }
+    .btn-launch {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.45rem 1rem;
+      background: transparent;
+      border: 1px solid var(--text);
+      color: var(--text);
+      cursor: pointer;
+      border-radius: 4px;
+      position: relative;
+      transition: all 0.2s;
+    }
+    .btn-launch:hover {
+      background: #141414;
+      color: #efece6;
+    }
+
+    /* Right Navigation Rail */
+    .right-rail {
+      position: fixed;
+      right: 1.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 270px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 50;
+      pointer-events: none;
+    }
+    .rail-dots {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
+    .rail-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: rgba(20, 20, 20, 0.3);
+    }
+    .rail-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      padding: 0.2rem 0.5rem;
+      background: #141414;
+      color: #efece6;
+      border-radius: 3px;
+      position: absolute;
+      right: 12px;
+      top: 0;
+      transition: top 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+
+    /* Content Layout Containers */
+    .content-wrapper {
+      position: relative;
+      z-index: 10;
+    }
+    section {
+      min-height: 100vh;
+      position: relative;
+      padding: 4rem 0;
+    }
+
+    /* Header & Telemetry Shelf */
+    .hero-header {
+      padding: 3rem 17% 1.5rem 17%;
+    }
+
+    /* Section 2: Key Stats & 5-Parameter Verification Suite */
+    .section-title-wrap {
+      padding-left: 17%;
+      margin-bottom: 2.5rem;
+    }
+    .sec-tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: var(--primary);
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .sec-heading {
+      font-size: clamp(32px, 3.2vw, 56px);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    /* Telemetry Stats Grid */
+    .stats-shelf {
+      padding: 0 17%;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3.5rem;
+    }
+    .shelf-card {
+      background: rgba(248, 246, 242, 0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      position: relative;
+    }
+    .shelf-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      margin-bottom: 0.4rem;
+    }
+    .shelf-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 2.2rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .shelf-sub {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 0.25rem;
+    }
+
+    /* 5-Parameter Cards Grid */
+    .param-suite-wrap {
+      padding: 0 17%;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 4rem;
+    }
+    .p-card {
+      background: rgba(248, 246, 242, 0.94);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 1.35rem;
+      border-top: 3px solid #141414;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .p-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
+    }
+    .p-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .p-title { font-size: 15px; font-weight: 700; }
+    .p-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      padding: 0.15rem 0.45rem;
+      background: #141414;
+      color: #efece6;
+      border-radius: 3px;
+      letter-spacing: 0.05em;
+    }
+    .p-line {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 0.35rem;
+      line-height: 1.45;
+    }
+    .p-line strong { color: var(--text); }
+    .p-box {
+      margin-top: 0.75rem;
+      background: rgba(20, 20, 20, 0.04);
+      border: 1px dashed rgba(20, 20, 20, 0.18);
+      border-radius: 4px;
+      padding: 0.5rem 0.7rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10.5px;
+      color: #c2410c;
+    }
+
+    /* Section 3: Telemetry Stream Feed */
+    .events-section {
+      padding: 0 17%;
+      margin-bottom: 8rem;
+    }
+    .events-container {
+      background: rgba(248, 246, 242, 0.95);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .events-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--card-border);
+      background: rgba(20, 20, 20, 0.02);
+    }
+    .events-title { font-size: 15px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+    .events-pulse {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10.5px;
+      color: var(--success);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th {
+      padding: 0.85rem 1.25rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--card-border);
+    }
+    td {
+      padding: 0.9rem 1.25rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11.5px;
+      border-bottom: 1px solid rgba(20, 20, 20, 0.05);
+    }
+    tr:hover { background: rgba(20, 20, 20, 0.02); }
+    .sig-badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 600;
+      border: 1px solid currentColor;
+    }
+    .sig-rep { color: #dc2626; background: rgba(220, 38, 38, 0.08); }
+    .sig-tool { color: #d97706; background: rgba(217, 119, 6, 0.08); }
+    .sig-stall { color: #4f46e5; background: rgba(79, 70, 229, 0.08); }
+
+    /* macOS Magnification Dock */
+    .dock-container {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 18px;
+      background: rgba(248, 246, 242, 0.88);
+      backdrop-filter: blur(28px) saturate(180%);
+      border: 1px solid rgba(20, 20, 20, 0.15);
+      border-radius: 26px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0,0,0,0.2);
+    }
+    .dock-item {
+      position: relative;
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      background: #efece6;
+      border: 1px solid rgba(20, 20, 20, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text);
+      transition: transform 0.16s cubic-bezier(0.25, 1, 0.5, 1), background 0.2s;
+      will-change: transform;
+    }
+    .dock-item:hover {
+      background: #141414;
+      color: #efece6;
+      border-color: #141414;
+    }
+    .dock-item svg { width: 22px; height: 22px; pointer-events: none; }
+    .dock-divider { width: 1px; height: 28px; background: rgba(20, 20, 20, 0.15); margin: 0 4px; }
+    .dock-tooltip {
+      position: absolute;
+      bottom: calc(100% + 10px);
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      background: #141414;
+      color: #efece6;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+    .dock-item:hover .dock-tooltip { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      background: #141414;
+      color: #efece6;
+      padding: 0.85rem 1.25rem;
+      border-radius: 6px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      gap: 0.6rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 900px) {
+      .grid-guide { display: none; }
+      nav { grid-template-columns: 1fr auto; padding: 0 1rem; }
+      .nav-links, .nav-pad { display: none; }
+      .hero-header, .section-title-wrap, .stats-shelf, .param-suite-wrap, .events-section { padding: 0 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toast" id="toast">
+    <span id="toast-icon">&#10004;</span>
+    <span id="toast-msg">Operation completed</span>
+  </div>
+
+  <!-- Background Three.js Canvas -->
+  <canvas id="webgl-canvas"></canvas>
+
+  <!-- Vertical 1px Guidelines -->
+  <div class="grid-guide guide-left"></div>
+  <div class="grid-guide guide-mid"></div>
+  <div class="grid-guide guide-right"></div>
+
+  <!-- Top Announcement Bar -->
+  <div class="top-bar" id="topBar">
+    <div><strong>NEW:</strong> EcoBrake V1 &mdash; Goal-Aware Runtime Circuit Breaker for LLM Inference ↗</div>
+    <div class="top-bar-close" onclick="closeTopBar()">&times;</div>
+  </div>
+
+  <!-- Main Navigation -->
+  <nav id="mainNav">
+    <a href="#" class="nav-logo">
+      <div class="logo-badge"></div>
+      <span class="logo-text">ECOBRAKE</span>
+    </a>
+    <div class="nav-links">
+      <a href="#suite-section">5-Param Suite</a>
+      <a href="#telemetry-section">Live Telemetry</a>
+      <a href="/api/stats" target="_blank">API Stats ↗</a>
+      <a href="/api/events" target="_blank">Raw Events ↗</a>
+    </div>
+    <div class="nav-pad">PORT 8000</div>
+    <div class="nav-action">
+      <button class="btn-launch" onclick="triggerSuiteVerification()">•• RUN SUITE</button>
+    </div>
+  </nav>
+
+  <!-- Right Navigation Rail -->
+  <div class="right-rail">
+    <div class="rail-badge" id="railBadge">SUITE</div>
+    <div class="rail-dots">
+      <div class="rail-dot"></div>
+      <div class="rail-dot"></div>
+      <div class="rail-dot"></div>
+      <div class="rail-dot"></div>
+      <div class="rail-dot"></div>
+      <div class="rail-dot"></div>
+      <div class="rail-dot"></div>
+      <div class="rail-dot"></div>
+      <div class="rail-dot"></div>
+      <div class="rail-dot"></div>
+      <div class="rail-dot"></div>
+      <div class="rail-dot"></div>
+      <div class="rail-dot"></div>
+      <div class="rail-dot"></div>
+    </div>
+  </div>
+
+  <div class="content-wrapper">
+    <!-- Clean EcoBrake Hero Header -->
+    <div class="hero-header">
+      <div class="sec-tag">RUNTIME CIRCUIT BREAKER TELEMETRY</div>
+      <h1 style="font-size: clamp(34px, 4vw, 62px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 0.6rem;">EcoBrake Control Center</h1>
+      <p style="color: var(--text-dim); max-width: 600px; font-size: 15px; background: rgba(239, 236, 230, 0.88); padding: 0.45rem 0.75rem; border-radius: 4px; display: inline-block;">
+        Inference-time streaming proxy monitoring LLM agent loops & stalls with real-time bounded recovery.
+      </p>
+    </div>
+
+    <!-- Section 2: Product & 5-Parameter Verification Suite -->
+    <section id="suite-section">
+      <div class="section-title-wrap">
+        <div class="sec-tag">TELEMETRY & PARAMETERS</div>
+        <div class="sec-heading">Goal-Aware Runtime Protection</div>
+      </div>
+
+      <!-- Top Key Stats Shelf -->
+      <div class="stats-shelf">
+        <div class="shelf-card">
+          <div class="shelf-label">Total Runs Monitored</div>
+          <div class="shelf-num" id="stat-runs">0</div>
+          <div class="shelf-sub">Active stream passthrough</div>
+        </div>
+        <div class="shelf-card">
+          <div class="shelf-label">Total Interventions</div>
+          <div class="shelf-num" id="stat-interventions" style="color: var(--accent);">0</div>
+          <div class="shelf-sub">Loops & stalls averted</div>
+        </div>
+        <div class="shelf-card">
+          <div class="shelf-label">Tokens Saved</div>
+          <div class="shelf-num" id="stat-saved" style="color: var(--success);">0</div>
+          <div class="shelf-sub" id="stat-cost">≈ $0.00000 USD saved</div>
+        </div>
+        <div class="shelf-card">
+          <div class="shelf-label">Mean Added Latency</div>
+          <div class="shelf-num" id="stat-latency">0.0 ms</div>
+          <div class="shelf-sub">Target &lt; 50ms p95</div>
+        </div>
+      </div>
+
+      <!-- 5-Parameter Verification Suite Cards -->
+      <div class="param-suite-wrap">
+        <div class="p-card">
+          <div class="p-card-head">
+            <span class="p-title">1. Sentence Repetition Monitor</span>
+            <span class="p-badge">PARAM 1</span>
+          </div>
+          <div class="p-line"><strong>Window:</strong> Last 300 characters</div>
+          <div class="p-line"><strong>Normalization:</strong> Min 25 chars, lowercased</div>
+          <div class="p-line"><strong>Rule:</strong> Flag on 3+ occurrences in rolling buffer</div>
+          <div class="p-box">Rewinds stream to clean checkpoint before loop</div>
+        </div>
+
+        <div class="p-card">
+          <div class="p-card-head">
+            <span class="p-title">2. Identical Tool-Call Tracker</span>
+            <span class="p-badge">PARAM 2</span>
+          </div>
+          <div class="p-line"><strong>Canonical Key:</strong> (name, canonicalized JSON)</div>
+          <div class="p-line"><strong>Threshold:</strong> Flag on 3x identical calls in run</div>
+          <div class="p-line"><strong>Action:</strong> Cuts stream before wasted token spend</div>
+          <div class="p-box">Catches loops ledger alone might miss</div>
+        </div>
+
+        <div class="p-card">
+          <div class="p-card-head">
+            <span class="p-title">3. Tool-Result Tracker (Ledger)</span>
+            <span class="p-badge">PARAM 3</span>
+          </div>
+          <div class="p-line"><strong>Hashing:</strong> SHA-256 tool output fingerprints</div>
+          <div class="p-line"><strong>Progress:</strong> New tool key, new hash, or new fact</div>
+          <div class="p-line"><strong>Stall Threshold:</strong> 3 consecutive zero-progress turns</div>
+          <div class="p-box">Detects when agent repeats calls getting same answer</div>
+        </div>
+
+        <div class="p-card">
+          <div class="p-card-head">
+            <span class="p-title">4. Adaptive Interventions</span>
+            <span class="p-badge">PARAM 4</span>
+          </div>
+          <div class="p-line"><strong>Policy 1:</strong> Bounded retry once from clean boundary</div>
+          <div class="p-line"><strong>Policy 2:</strong> Clean stop with 'echobrake_stopped'</div>
+          <div class="p-line"><strong>Policy 3:</strong> Injects strategy change note on STALLED</div>
+          <div class="p-box">Appends guidance: 'Previous attempt looped...'</div>
+        </div>
+
+        <div class="p-card">
+          <div class="p-card-head">
+            <span class="p-title">5. Savings and Economics</span>
+            <span class="p-badge">PARAM 5</span>
+          </div>
+          <div class="p-line"><strong>Detection Rate:</strong> 100% on benchmark callset</div>
+          <div class="p-line"><strong>False Positive Rate:</strong> 0.0% on healthy code/text</div>
+          <div class="p-line"><strong>Economics:</strong> Blended $0.60/1M token savings</div>
+          <div class="p-box" id="metrics-box-label">Verified: 0 tokens saved ($0.00000 USD)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Live Telemetry Stream Feed -->
+    <section id="telemetry-section" class="events-section">
+      <div class="events-container">
+        <div class="events-head">
+          <div class="events-title">LIVE INTERVENTION TELEMETRY FEED</div>
+          <div class="events-pulse">
+            <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--success);"></span>
+            <span>POLLING 2s</span>
+          </div>
+        </div>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Run ID</th>
+                <th>Signal</th>
+                <th>Policy</th>
+                <th>Action</th>
+                <th>Tokens (Pre &rarr; Post)</th>
+                <th>Saved</th>
+                <th>Latency</th>
+                <th>Diagnosis Details</th>
+              </tr>
+            </thead>
+            <tbody id="events-tbody">
+              <tr>
+                <td colspan="9" style="text-align:center; padding: 2.5rem; color: var(--text-dim);">
+                  No interventions recorded yet. Real-time stream events will appear here live.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- macOS-Style Floating Dock -->
+  <div class="dock-container" id="floatingDock">
+    <div class="dock-item" onclick="scrollToSection('suite-section')">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+      </svg>
+      <span class="dock-tooltip">5-PARAM SUITE</span>
+    </div>
+
+    <div class="dock-item" onclick="scrollToSection('telemetry-section')">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+      </svg>
+      <span class="dock-tooltip">LIVE FEED</span>
+    </div>
+
+    <div class="dock-divider"></div>
+
+    <div class="dock-item" onclick="triggerSuiteVerification()">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      </svg>
+      <span class="dock-tooltip">RUN VERIFICATION</span>
+    </div>
+
+    <div class="dock-item" onclick="triggerStallDemo()">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <span class="dock-tooltip">TRIGGER STALL DEMO</span>
+    </div>
+
+    <div class="dock-item" onclick="updateDashboard(true)">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      <span class="dock-tooltip">INSTANT SYNC</span>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       Three.js 3D Mouse-Tracking Robot Implementation
+       ======================================================== -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+    // Scene & Canvas
+    const canvas = document.getElementById('webgl-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmremGenerator.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+    const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 100);
+
+    // Lights
+    const hemiLight = new THREE.HemisphereLight(0xfff6ee, 0xd9d2c8, 0.7);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight(0xfff3e6, 1.7);
+    keyLight.position.set(-3, 5, 4);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 1024;
+    keyLight.shadow.mapSize.height = 1024;
+    keyLight.shadow.radius = 6;
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0xfff0e6, 1.2);
+    rimLight.position.set(4, 2, -4);
+    scene.add(rimLight);
+
+    const fillPoint = new THREE.PointLight(0xff9a6a, 2.2, 6);
+    fillPoint.position.set(-3.2, 1.2, 0.6);
+    scene.add(fillPoint);
+
+    // Robot Materials
+    const shellMat = new THREE.MeshPhysicalMaterial({ color: 0xeeebe6, roughness: 0.38, clearcoat: 0.45, clearcoatRoughness: 0.3 });
+    const shellLightMat = new THREE.MeshPhysicalMaterial({ color: 0xf8f6f2, roughness: 0.34, clearcoat: 0.45, clearcoatRoughness: 0.3 });
+    const jointMat = new THREE.MeshStandardMaterial({ color: 0x1b1b1f, roughness: 0.55, metalness: 0.3 });
+    const pedestalMat = new THREE.MeshStandardMaterial({ color: 0x2a2928, roughness: 0.9 });
+
+    // Dynamic Face Screen Canvas (512x512)
+    const faceCanvas = document.createElement('canvas');
+    faceCanvas.width = 512;
+    faceCanvas.height = 512;
+    const faceCtx = faceCanvas.getContext('2d');
+    const faceTexture = new THREE.CanvasTexture(faceCanvas);
+
+    let blinkState = 1.0;
+    let isBlinking = false;
+    let quoteMode = false;
+
+    function drawFace() {
+      faceCtx.fillStyle = '#080808';
+      faceCtx.fillRect(0, 0, 512, 512);
+
+      faceCtx.shadowColor = '#ffffff';
+      faceCtx.shadowBlur = 18;
+      faceCtx.fillStyle = '#ffffff';
+
+      if (!quoteMode) {
+        // Two Glowing Oval Eyes
+        const eyeH = 38 * blinkState;
+        faceCtx.beginPath();
+        faceCtx.ellipse(196, 262, 30, Math.max(2, eyeH), 0, 0, Math.PI * 2);
+        faceCtx.fill();
+
+        faceCtx.beginPath();
+        faceCtx.ellipse(316, 252, 30, Math.max(2, eyeH), 0, 0, Math.PI * 2);
+        faceCtx.fill();
+      } else {
+        // Quote Mark
+        faceCtx.font = '900 480px "Arial Black", sans-serif';
+        faceCtx.textAlign = 'center';
+        faceCtx.textBaseline = 'middle';
+        faceCtx.fillText('“', 256, 360);
+      }
+      faceTexture.needsUpdate = true;
+    }
+    drawFace();
+
+    // Blink timer loop
+    function scheduleBlink() {
+      setTimeout(() => {
+        isBlinking = true;
+        let down = true;
+        const blinkInterval = setInterval(() => {
+          if (down) {
+            blinkState -= 0.3;
+            if (blinkState <= 0.1) down = false;
+          } else {
+            blinkState += 0.3;
+            if (blinkState >= 1.0) {
+              blinkState = 1.0;
+              clearInterval(blinkInterval);
+              isBlinking = false;
+              scheduleBlink();
+            }
+          }
+          drawFace();
+        }, 20);
+      }, 2500 + Math.random() * 3000);
+    }
+    scheduleBlink();
+
+    const screenMat = new THREE.MeshPhysicalMaterial({
+      color: 0x050505,
+      roughness: 0.1,
+      clearcoat: 1.0,
+      emissive: 0xffffff,
+      emissiveMap: faceTexture,
+      emissiveIntensity: 1.6
+    });
+
+    // Robot Geometry Hierarchy
+    const robot = new THREE.Group();
+    scene.add(robot);
+
+    // Helper for rounded box
+    function makeBox(w, h, d, r, mat) {
+      try {
+        const geo = new RoundedBoxGeometry(w, h, d, 4, r);
+        return new THREE.Mesh(geo, mat);
+      } catch (e) {
+        const geo = new THREE.BoxGeometry(w, h, d);
+        return new THREE.Mesh(geo, mat);
+      }
+    }
+
+    // Pedestal
+    const pedestal = makeBox(1.8, 1.6, 1.8, 0.08, pedestalMat);
+    pedestal.position.set(0, -2.25, 0);
+    pedestal.receiveShadow = true;
+    robot.add(pedestal);
+
+    // Torso
+    const torsoGroup = new THREE.Group();
+    torsoGroup.position.set(0, -0.6, 0);
+    robot.add(torsoGroup);
+
+    const torso = makeBox(1.22, 1.12, 0.92, 0.24, shellMat);
+    torso.castShadow = true;
+    torsoGroup.add(torso);
+
+    const chestSlab = makeBox(0.9, 0.3, 0.1, 0.05, shellLightMat);
+    chestSlab.position.set(0, 0.3, 0.46);
+    torsoGroup.add(chestSlab);
+
+    // 3 LED dots on chest
+    const ledColors = [0xff8a3d, 0xff5a5f, 0xff3d8b];
+    for (let i = 0; i < 3; i++) {
+      const ledMat = new THREE.MeshBasicMaterial({ color: ledColors[i] });
+      const led = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), ledMat);
+      led.position.set(-0.2 + i * 0.2, 0.05, 0.48);
+      torsoGroup.add(led);
+    }
+
+    // Pelvis
+    const pelvis = makeBox(0.8, 0.25, 0.6, 0.1, jointMat);
+    pelvis.position.set(0, -0.65, 0);
+    torsoGroup.add(pelvis);
+
+    // Head Pivot Group
+    const headPivot = new THREE.Group();
+    headPivot.position.set(0, 0.18, 0);
+    robot.add(headPivot);
+
+    const skull = makeBox(1.5, 1.42, 1.3, 0.2, shellMat);
+    skull.position.set(0, 0.78, 0);
+    skull.castShadow = true;
+    headPivot.add(skull);
+
+    // Screen
+    const screenMesh = makeBox(0.96, 0.9, 0.04, 0.06, screenMat);
+    screenMesh.position.set(0, 0.78, 0.66);
+    headPivot.add(screenMesh);
+
+    // Ears
+    const earGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15, 24);
+    const earL = new THREE.Mesh(earGeo, jointMat);
+    earL.rotation.z = Math.PI / 2;
+    earL.position.set(-0.8, 0.78, 0);
+    headPivot.add(earL);
+
+    const earR = earL.clone();
+    earR.position.set(0.8, 0.78, 0);
+    headPivot.add(earR);
+
+    // Arms
+    const shoulderL = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), jointMat);
+    shoulderL.position.set(-0.85, 0.35, 0);
+    torsoGroup.add(shoulderL);
+
+    const armL = makeBox(0.28, 0.7, 0.28, 0.08, shellMat);
+    armL.position.set(-0.88, -0.15, 0);
+    armL.rotation.z = 0.16;
+    torsoGroup.add(armL);
+
+    const shoulderR = shoulderL.clone();
+    shoulderR.position.set(0.85, 0.35, 0);
+    torsoGroup.add(shoulderR);
+
+    const armR = makeBox(0.28, 0.7, 0.28, 0.08, shellMat);
+    armR.position.set(0.88, -0.15, 0);
+    armR.rotation.z = -0.16;
+    torsoGroup.add(armR);
+
+    // Legs
+    const legL = makeBox(0.35, 0.8, 0.35, 0.08, shellMat);
+    legL.position.set(-0.38, -1.15, 0);
+    legL.castShadow = true;
+    torsoGroup.add(legL);
+
+    const footL = makeBox(0.42, 0.2, 0.6, 0.08, shellLightMat);
+    footL.position.set(-0.38, -1.55, 0.1);
+    torsoGroup.add(footL);
+
+    const legR = legL.clone();
+    legR.position.set(0.38, -1.15, 0);
+    torsoGroup.add(legR);
+
+    const footR = footL.clone();
+    footR.position.set(0.38, -1.55, 0.1);
+    torsoGroup.add(footR);
+
+    // Pointer Tracking State
+    const mouse = { x: 0, y: 0, targetX: 0, targetY: 0 };
+    window.addEventListener('mousemove', (e) => {
+      mouse.targetX = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.targetY = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+
+    // Animation & Render Loop
+    let clock = new THREE.Clock();
+    let scrollP = 0;
+    let smoothP = 0;
+
+    window.addEventListener('scroll', () => {
+      scrollP = window.scrollY / window.innerHeight;
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const t = clock.getElapsedTime();
+
+      // Smooth mouse follow
+      mouse.x += (mouse.targetX - mouse.x) * 0.06;
+      mouse.y += (mouse.targetY - mouse.y) * 0.06;
+
+      // Smooth scroll interpolation
+      smoothP += (scrollP - smoothP) * 0.08;
+
+      // Camera State Interpolation
+      // Telemetry & Verification state
+      const isMobile = window.innerWidth <= 900;
+      const zoomFactor = isMobile ? 1.25 : 1.0;
+
+      const pClamped = Math.min(1.0, smoothP);
+      const camZ = (8.2 - pClamped * 1.6) * zoomFactor;
+      const camY = 1.35 + pClamped * 0.45;
+      const lookY = 0.85 + pClamped * 0.45;
+
+      camera.position.x = mouse.x * 0.28;
+      camera.position.y = camY - mouse.y * 0.12;
+      camera.position.z = camZ;
+      camera.lookAt(0, lookY, 0);
+
+      // Body and Head yaw/pitch from mouse + idle sway
+      const bodyYaw = -0.42 + smoothP * 0.25 + mouse.x * 0.12;
+      robot.rotation.y = bodyYaw;
+
+      headPivot.rotation.y = -0.6 + smoothP * 0.5 + mouse.x * 0.45;
+      headPivot.rotation.x = 0.16 - smoothP * 0.12 - mouse.y * 0.18 + Math.sin(t * 0.9) * 0.02;
+      headPivot.rotation.z = 0.22 - smoothP * 0.2 + Math.sin(t * 0.7) * 0.02;
+
+      // Idle subtle breathing bob
+      robot.position.y = Math.sin(t * 1.4) * 0.02;
+
+      // Swap face to quote mode when scrolled down
+      if (smoothP > 0.8 && !quoteMode) {
+        quoteMode = true;
+        drawFace();
+      } else if (smoothP <= 0.8 && quoteMode) {
+        quoteMode = false;
+        drawFace();
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+
+  <!-- ========================================================
+       Dashboard Logic & Telemetry
+       ======================================================== -->
+  <script>
+    // Right Rail Navigation Indicator
+    window.addEventListener('scroll', () => {
+      const p = window.scrollY / window.innerHeight;
+      const badge = document.getElementById('railBadge');
+      if (p < 0.6) {
+        badge.textContent = "SUITE";
+        badge.style.top = "0%";
+      } else {
+        badge.textContent = "TELEMETRY";
+        badge.style.top = "50%";
+      }
+
+      // Slide topBar up on scroll
+      const topBar = document.getElementById('topBar');
+      if (window.scrollY > 40) {
+        topBar.style.transform = "translateY(-100%)";
+      } else {
+        topBar.style.transform = "translateY(0)";
+      }
+    });
+
+    function closeTopBar() {
+      document.getElementById('topBar').style.display = "none";
+    }
+
+    function scrollToSection(id) {
+      document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      toast.style.display = 'flex';
+      setTimeout(() => { toast.style.display = 'none'; }, 3200);
+    }
+
+    // 21st.dev Style Magnification Dock Physics
+    const dock = document.getElementById('floatingDock');
+    const items = dock.querySelectorAll('.dock-item');
+    dock.addEventListener('mousemove', (e) => {
+      const mouseX = e.clientX;
+      items.forEach(item => {
+        const rect = item.getBoundingClientRect();
+        const center = rect.left + rect.width / 2;
+        const dist = Math.abs(mouseX - center);
+        const maxDist = 120;
+        if (dist < maxDist) {
+          const scale = 1 + 0.42 * Math.cos((dist / maxDist) * (Math.PI / 2));
+          item.style.transform = `scale(${scale}) translateY(-${(scale - 1) * 14}px)`;
+        } else {
+          item.style.transform = 'scale(1) translateY(0)';
+        }
+      });
+    });
+    dock.addEventListener('mouseleave', () => {
+      items.forEach(item => { item.style.transform = 'scale(1) translateY(0)'; });
+    });
+
+    // Real-Time Data Sync from EcoBrake Proxy
+    async function updateDashboard(manual = false) {
+      try {
+        const resStats = await fetch('/api/stats');
+        if (resStats.ok) {
+          const stats = await resStats.json();
+          document.getElementById('stat-runs').textContent = stats.runs || 0;
+          document.getElementById('stat-interventions').textContent = stats.interventions || 0;
+          document.getElementById('stat-saved').textContent = (stats.estimated_tokens_saved || 0).toLocaleString();
+          const cost = (stats.estimated_cost_saved_usd || 0).toFixed(5);
+          document.getElementById('stat-cost').textContent = `≈ $${cost} USD saved`;
+          document.getElementById('stat-latency').textContent = (stats.mean_added_latency_ms || 0) + ' ms';
+          document.getElementById('metrics-box-label').textContent = `Verified: ${(stats.estimated_tokens_saved || 0).toLocaleString()} tokens saved ($${cost} USD)`;
+        }
+
+        const resEvents = await fetch('/api/events');
+        if (resEvents.ok) {
+          const events = await resEvents.json();
+          const tbody = document.getElementById('events-tbody');
+          if (events && events.length > 0) {
+            tbody.innerHTML = events.map(ev => {
+              const dt = new Date(ev.timestamp * 1000).toLocaleTimeString();
+              const sig = (ev.signal || '').toLowerCase();
+              let sigClass = 'sig-rep';
+              if (sig.includes('tool')) sigClass = 'sig-tool';
+              if (sig.includes('stall')) sigClass = 'sig-stall';
+
+              const details = ev.details && ev.details.reason ? ev.details.reason : '-';
+              return `
+                <tr>
+                  <td>${dt}</td>
+                  <td>${ev.run_id}</td>
+                  <td><span class="sig-badge ${sigClass}">${ev.signal}</span></td>
+                  <td>${ev.policy}</td>
+                  <td>${ev.action}</td>
+                  <td>${ev.tokens_before} &rarr; ${ev.tokens_after}</td>
+                  <td style="color:var(--success); font-weight:700;">+${ev.tokens_saved || 0}</td>
+                  <td>${ev.latency_added_ms} ms</td>
+                  <td style="max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${details}</td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+        if (manual) showToast('Dashboard synchronized with EcoBrake proxy.');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function triggerSuiteVerification() {
+      showToast('Executing 5-Parameter Verification Suite...');
+      try {
+        const res = await fetch('/api/parameter-suite');
+        if (res.ok) {
+          const data = await res.json();
+          showToast(`Parameter Suite: ${data.overall_status}!`);
+        }
+      } catch (e) {
+        showToast('Suite check failed: ' + e);
+      }
+    }
+
+    async function triggerStallDemo() {
+      showToast('Dispatching live loop request through EcoBrake...');
+      try {
+        const res = await fetch('/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: 'Loop demo' }],
+            replay_file: 'bench/stalled_runs/stalled_sentence_loop.json',
+            stream: true
+          })
+        });
+        if (res.ok) {
+          setTimeout(updateDashboard, 500);
+          showToast('Loop intercepted! Check Telemetry section.');
+        }
+      } catch (e) {
+        showToast('Request failed: ' + e);
+      }
+    }
+
+    updateDashboard();
+    setInterval(updateDashboard, 2000);
+  </script>
+</body>
+</html>

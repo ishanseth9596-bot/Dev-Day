@@ -1,0 +1,8 @@
+{
+  "run_id": "bench_healthy_4",
+  "label": "healthy",
+  "expected_answer": "Hello! How can I assist you with your project today?",
+  "stream_chunks": [
+    {"chunk": "data: {\"id\": \"h4\", \"choices\": [{\"delta\": {\"content\": \"Hello! How can I assist you with your project today?\"}, \"finish_reason\": \"stop\"}]}\n\ndata: [DONE]\n\n", "timestamp_ms": 10.0}
+  ]
+}

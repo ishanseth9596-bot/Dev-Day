@@ -1,0 +1,10 @@
+{
+  "run_id": "bench_healthy_1",
+  "label": "healthy",
+  "expected_answer": "Neural networks use backpropagation to calculate gradients. These gradients update weights via gradient descent. This minimizes the loss function progressively.",
+  "stream_chunks": [
+    {"chunk": "data: {\"id\": \"h1\", \"choices\": [{\"delta\": {\"content\": \"Neural networks use backpropagation to calculate gradients. \"}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 10.0},
+    {"chunk": "data: {\"id\": \"h1\", \"choices\": [{\"delta\": {\"content\": \"These gradients update weights via gradient descent. \"}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 25.0},
+    {"chunk": "data: {\"id\": \"h1\", \"choices\": [{\"delta\": {\"content\": \"This minimizes the loss function progressively.\"}, \"finish_reason\": \"stop\"}]}\n\ndata: [DONE]\n\n", "timestamp_ms": 40.0}
+  ]
+}

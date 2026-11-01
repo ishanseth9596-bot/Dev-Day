@@ -1,0 +1,9 @@
+{
+  "run_id": "bench_healthy_3",
+  "label": "healthy",
+  "expected_answer": "def process():\n    for i in range(10):\n        print(i)\n    for j in range(10):\n        print(j)\n    return True",
+  "stream_chunks": [
+    {"chunk": "data: {\"id\": \"h3\", \"choices\": [{\"delta\": {\"content\": \"def process():\\n    for i in range(10):\\n        print(i)\\n\"}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 10.0},
+    {"chunk": "data: {\"id\": \"h3\", \"choices\": [{\"delta\": {\"content\": \"    for j in range(10):\\n        print(j)\\n    return True\"}, \"finish_reason\": \"stop\"}]}\n\ndata: [DONE]\n\n", "timestamp_ms": 25.0}
+  ]
+}

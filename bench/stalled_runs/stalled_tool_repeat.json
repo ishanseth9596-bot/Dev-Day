@@ -1,0 +1,10 @@
+{
+  "run_id": "bench_stall_tool_1",
+  "label": "stalled",
+  "expected_signal": "TOOL_REPEAT",
+  "stream_chunks": [
+    {"chunk": "data: {\"id\": \"t1\", \"choices\": [{\"delta\": {\"tool_calls\": [{\"index\": 0, \"function\": {\"name\": \"fetch_record\", \"arguments\": \"{\\\"user_id\\\": 42}\"}}]}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 15.0},
+    {"chunk": "data: {\"id\": \"t1\", \"choices\": [{\"delta\": {\"tool_calls\": [{\"index\": 0, \"function\": {\"name\": \"fetch_record\", \"arguments\": \"{\\\"user_id\\\": 42}\"}}]}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 30.0},
+    {"chunk": "data: {\"id\": \"t1\", \"choices\": [{\"delta\": {\"tool_calls\": [{\"index\": 0, \"function\": {\"name\": \"fetch_record\", \"arguments\": \"{\\\"user_id\\\": 42}\"}}]}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 45.0}
+  ]
+}

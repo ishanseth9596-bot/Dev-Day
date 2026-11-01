@@ -1,0 +1,11 @@
+{
+  "run_id": "bench_stall_verbatim_loop",
+  "label": "stalled",
+  "expected_signal": "REPETITION",
+  "stream_chunks": [
+    {"chunk": "data: {\"id\": \"v1\", \"choices\": [{\"delta\": {\"content\": \"Checking buffer status now. \"}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 10.0},
+    {"chunk": "data: {\"id\": \"v1\", \"choices\": [{\"delta\": {\"content\": \"Waiting for the remote background task to complete successfully. \"}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 25.0},
+    {"chunk": "data: {\"id\": \"v1\", \"choices\": [{\"delta\": {\"content\": \"Waiting for the remote background task to complete successfully. \"}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 40.0},
+    {"chunk": "data: {\"id\": \"v1\", \"choices\": [{\"delta\": {\"content\": \"Waiting for the remote background task to complete successfully. \"}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 55.0}
+  ]
+}

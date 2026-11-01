@@ -1,0 +1,12 @@
+{
+  "run_id": "bench_stall_sentence_1",
+  "label": "stalled",
+  "expected_signal": "REPETITION",
+  "stream_chunks": [
+    {"chunk": "data: {\"id\": \"s1\", \"choices\": [{\"delta\": {\"content\": \"Here is your requested summary. \"}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 10.0},
+    {"chunk": "data: {\"id\": \"s1\", \"choices\": [{\"delta\": {\"content\": \"The system failed to converge on the target state properly. \"}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 25.0},
+    {"chunk": "data: {\"id\": \"s1\", \"choices\": [{\"delta\": {\"content\": \"The system failed to converge on the target state properly. \"}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 40.0},
+    {"chunk": "data: {\"id\": \"s1\", \"choices\": [{\"delta\": {\"content\": \"The system failed to converge on the target state properly. \"}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 55.0},
+    {"chunk": "data: {\"id\": \"s1\", \"choices\": [{\"delta\": {\"content\": \"The system failed to converge on the target state properly. \"}, \"finish_reason\": null}]}\n\n", "timestamp_ms": 70.0}
+  ]
+}
